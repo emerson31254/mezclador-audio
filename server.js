@@ -38,7 +38,7 @@ app.post("/mix", async (req, res) => {
     await downloadFile(fondo, fondoPath);
 
     // Ejecutar FFmpeg
-    const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[1:a]volume=0.3[a1];[0:a][a1]amix=inputs=2:duration=first" -af "afade=t=out:st=calc(duration-4):d=4" -y "${outputPath}"`;
+    const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[1:a]volume=0.3[a1];[0:a][a1]amix=inputs=2:duration=first" -y "${outputPath}"`;
 
     await new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {

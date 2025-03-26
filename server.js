@@ -12,9 +12,9 @@ app.use(express.json());
 
 // Configurar Cloudinary
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
+  cloud_name: "deyopp70c",
+  api_key: "294961449435536",
+  api_secret: "W1oAl9_qJXT7_LLw4K1C9UfuYUY",
 });
 
 // Obtener duración del audio

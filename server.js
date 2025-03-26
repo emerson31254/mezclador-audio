@@ -124,7 +124,7 @@ app.post("/unir", async (req, res) => {
     });
 
     res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Disposition", "attachment; filename=hipnosis-final.mp3`);
+    res.setHeader("Content-Disposition", "attachment; filename=hipnosis-final.mp3");
     const stream = fs.createReadStream(outputPath);
     stream.pipe(res);
 

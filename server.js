@@ -4,11 +4,20 @@ const fs = require("fs");
 const { exec } = require("child_process");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
+const cloudinary = require("cloudinary").v2;
+require("dotenv").config(); // Para usar .env si es local
 
 const app = express();
 app.use(express.json());
 
-// 🔧 Función reutilizable para obtener duración de un audio
+// Configurar Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_KEY,
+  api_secret: process.env.CLOUDINARY_SECRET,
+});
+
+// Obtener duración del audio
 const getAudioDuration = (filePath) => {
   return new Promise((resolve, reject) => {
     exec(
@@ -21,7 +30,7 @@ const getAudioDuration = (filePath) => {
   });
 };
 
-// 🎧 /mix → Mezcla hipnosis con música de fondo
+// Mezclar meditación + fondo
 app.post("/mix", async (req, res) => {
   const { meditacion, fondo } = req.body;
 
@@ -31,7 +40,6 @@ app.post("/mix", async (req, res) => {
 
   const id = uuidv4();
   const basePath = "/tmp";
-
   const meditacionPath = path.join(basePath, `${id}_meditacion.mp3`);
   const fondoPath = path.join(basePath, `${id}_fondo.mp3`);
   const outputPath = path.join(basePath, `${id}_final.mp3`);
@@ -57,31 +65,30 @@ app.post("/mix", async (req, res) => {
 
     await new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error("FFmpeg error:", stderr);
-          return reject(error);
-        }
+        if (error) return reject(error);
         resolve();
       });
     });
 
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Disposition", "attachment; filename=meditacion-final.mp3");
-    const stream = fs.createReadStream(outputPath);
-    stream.pipe(res);
-
-    stream.on("close", () => {
-      fs.unlinkSync(meditacionPath);
-      fs.unlinkSync(fondoPath);
-      fs.unlinkSync(outputPath);
+    const upload = await cloudinary.uploader.upload(outputPath, {
+      resource_type: "video",
+      folder: "hipnosis",
+      public_id: `mix-${id}`,
+      overwrite: true,
     });
+
+    res.json({ url: upload.secure_url });
+
+    fs.unlinkSync(meditacionPath);
+    fs.unlinkSync(fondoPath);
+    fs.unlinkSync(outputPath);
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: "Error al mezclar los audios" });
   }
 });
 
-// 🎙 /unir → Une 7 audios en uno solo
+// Unir 7 audios
 app.post("/unir", async (req, res) => {
   const { audios } = req.body;
 
@@ -115,31 +122,29 @@ app.post("/unir", async (req, res) => {
 
     await new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {
-        if (error) {
-          console.error("FFmpeg error:", stderr);
-          return reject(error);
-        }
+        if (error) return reject(error);
         resolve();
       });
     });
 
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Disposition", "attachment; filename=hipnosis-final.mp3");
-    const stream = fs.createReadStream(outputPath);
-    stream.pipe(res);
-
-    stream.on("close", () => {
-      audioPaths.forEach(p => fs.unlinkSync(p));
-      fs.unlinkSync(listPath);
-      fs.unlinkSync(outputPath);
+    const upload = await cloudinary.uploader.upload(outputPath, {
+      resource_type: "video",
+      folder: "hipnosis",
+      public_id: `hipnosis-${id}`,
+      overwrite: true,
     });
+
+    res.json({ url: upload.secure_url });
+
+    audioPaths.forEach(p => fs.unlinkSync(p));
+    fs.unlinkSync(listPath);
+    fs.unlinkSync(outputPath);
   } catch (err) {
     console.error("Error al unir audios:", err);
     res.status(500).json({ error: "Error al unir los audios" });
   }
 });
 
-// 🚀 Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🎧 Servidor activo en puerto ${PORT}`);

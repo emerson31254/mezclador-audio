@@ -5,19 +5,19 @@ const { exec } = require("child_process");
 const { v4: uuidv4 } = require("uuid");
 const path = require("path");
 const cloudinary = require("cloudinary").v2;
-require("dotenv").config(); // Para usar .env si es local
+require("dotenv").config();
 
 const app = express();
 app.use(express.json());
 
-// Configurar Cloudinary
+// Configurar Cloudinary para /unir
 cloudinary.config({
-  cloud_name: "deyopp70c",
-  api_key: "294961449435536",
-  api_secret: "W1oAl9_qJXT7_LLw4K1C9UfuYUY",
+  cloud_name: process.env.CLOUDINARY_NAME,
+  api_key: process.env.CLOUDINARY_KEY,
+  api_secret: process.env.CLOUDINARY_SECRET,
 });
 
-// Obtener duración del audio
+// Función para obtener duración
 const getAudioDuration = (filePath) => {
   return new Promise((resolve, reject) => {
     exec(
@@ -30,7 +30,7 @@ const getAudioDuration = (filePath) => {
   });
 };
 
-// Mezclar meditación + fondo
+// 🔊 /mix (mantiene respuesta como archivo físico)
 app.post("/mix", async (req, res) => {
   const { meditacion, fondo } = req.body;
 
@@ -70,25 +70,23 @@ app.post("/mix", async (req, res) => {
       });
     });
 
-    const upload = await cloudinary.uploader.upload(outputPath, {
-      resource_type: "video",
-      folder: "hipnosis",
-      public_id: `mix-${id}`,
-      overwrite: true,
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Content-Disposition", "attachment; filename=meditacion-final.mp3");
+    const stream = fs.createReadStream(outputPath);
+    stream.pipe(res);
+
+    stream.on("close", () => {
+      fs.unlinkSync(meditacionPath);
+      fs.unlinkSync(fondoPath);
+      fs.unlinkSync(outputPath);
     });
-
-    res.json({ url: upload.secure_url });
-
-    fs.unlinkSync(meditacionPath);
-    fs.unlinkSync(fondoPath);
-    fs.unlinkSync(outputPath);
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: "Error al mezclar los audios" });
   }
 });
 
-// Unir 7 audios
+// 🎧 /unir (devuelve URL desde Cloudinary)
 app.post("/unir", async (req, res) => {
   const { audios } = req.body;
 
@@ -145,6 +143,7 @@ app.post("/unir", async (req, res) => {
   }
 });
 
+// Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🎧 Servidor activo en puerto ${PORT}`);

@@ -101,6 +101,7 @@ app.post("/unir", async (req, res) => {
   try {
     for (let i = 0; i < audios.length; i++) {
       const audioPath = path.join(basePath, `${id}_${i}.mp3`);
+      console.log(audioPath);   
       const response = await axios({ url: audios[i], responseType: "stream" });
       const writer = fs.createWriteStream(audioPath);
       await new Promise((resolve, reject) => {

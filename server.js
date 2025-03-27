@@ -12,9 +12,9 @@ app.use(express.json());
 
 // Configurar Cloudinary para /unir
 cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_NAME,
-  api_key: process.env.CLOUDINARY_KEY,
-  api_secret: process.env.CLOUDINARY_SECRET,
+  cloud_name: "deyopp70c",
+  api_key: "294961449435536",
+  api_secret: "W1oAl9_qJXT7_LLw4K1C9UfuYUY",
 });
 
 // Función para obtener duración
@@ -101,7 +101,6 @@ app.post("/unir", async (req, res) => {
   try {
     for (let i = 0; i < audios.length; i++) {
       const audioPath = path.join(basePath, `${id}_${i}.mp3`);
-      console.log(audioPath);   
       const response = await axios({ url: audios[i], responseType: "stream" });
       const writer = fs.createWriteStream(audioPath);
       await new Promise((resolve, reject) => {

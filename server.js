@@ -60,8 +60,8 @@ app.post("/mix", async (req, res) => {
 
     const duration = await getAudioDuration(meditacionPath);
     const fadeStart = Math.max(0, duration - 4);
-
-    const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[0:a]highpass=f=80,lowpass=f=10000,acompressor,dynaudnorm[a0];[1:a]afade=t=out:st=${fadeStart}:d=4,volume=0.2[a1];[a0][a1]amix=inputs=2:duration=first" -y "${outputPath}"`;
+    
+    const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[0:a]highpass=f=120,lowpass=f=10000,acompressor,dynaudnorm[a0];[1:a]afade=t=out:st=${fadeStart}:d=4,volume=0.2[a1];[a0][a1]amix=inputs=2:duration=first" -y "${outputPath}"`;
 
     await new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {

@@ -3,7 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 const { exec } = require("child_process");
 const { v4: uuidv4 } = require("uuid");
-const path = require("path");
+const path= require("path");
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
 

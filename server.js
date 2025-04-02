@@ -73,23 +73,26 @@ app.post("/mix", async (req, res) => {
       });
     });
 
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader(
-      "Content-Disposition",
-      "attachment; filename=meditacion-final.mp3"
-    );
-    const stream = fs.createReadStream(outputPath);
-    stream.pipe(res);
-
-    stream.on("close", () => {
-      fs.unlinkSync(meditacionPath);
-      fs.unlinkSync(fondoPath);
-      fs.unlinkSync(outputPath);
+    const upload = await cloudinary.uploader.upload(outputPath, {
+      resource_type: "video",
+      folder: "hipnosis",
+      public_id: `hipnosis-${id}`,
+      overwrite: true,
     });
 
-    cloudinary.uploader.destroy(ruta, { resource_type: "video" })
-      .then((result) => console.log(result))
-      .catch((error) => console.error(error));
+    uriMP3 = upload.secure_url;
+    res.json({ url: upload.secure_url });
+
+    fs.unlinkSync(meditacionPath);
+    fs.unlinkSync(fondoPath);
+    fs.unlinkSync(outputPath);
+
+    if (ruta) {
+      cloudinary.uploader.destroy(ruta, { resource_type: "video" })
+        .then((result) => console.log(result))
+        .catch((error) => console.error(error));
+    }
+
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: "Error al mezclar los audios" });

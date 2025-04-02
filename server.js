@@ -33,7 +33,8 @@ const getAudioDuration = (filePath) => {
 
 // 🔊 /mix (mantiene respuesta como archivo físico)
 app.post("/mix", async (req, res) => {
-  console.log(uriMP3);
+  const ruta = uriMP3.match(/hipnosis\/[^.]+/)?.[0];
+  console.log(ruta);
   const { meditacion, fondo } = req.body;
 
   if (!meditacion || !fondo) {

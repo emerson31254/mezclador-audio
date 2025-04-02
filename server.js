@@ -86,6 +86,10 @@ app.post("/mix", async (req, res) => {
       fs.unlinkSync(fondoPath);
       fs.unlinkSync(outputPath);
     });
+
+    cloudinary.uploader.destroy(ruta, { resource_type: "video" })
+      .then((result) => console.log(result))
+      .catch((error) => console.error(error));
   } catch (err) {
     console.error("Error:", err);
     res.status(500).json({ error: "Error al mezclar los audios" });
@@ -97,11 +101,9 @@ app.post("/unir", async (req, res) => {
   const { audios } = req.body;
 
   if (!Array.isArray(audios) || audios.length !== 7) {
-    return res
-      .status(400)
-      .json({
-        error: "Debes enviar un arreglo con exactamente 7 URLs de audio.",
-      });
+    return res.status(400).json({
+      error: "Debes enviar un arreglo con exactamente 7 URLs de audio.",
+    });
   }
 
   const id = uuidv4();

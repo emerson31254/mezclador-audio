@@ -3,18 +3,19 @@ const axios = require("axios");
 const fs = require("fs");
 const { exec } = require("child_process");
 const { v4: uuidv4 } = require("uuid");
-const path= require("path");
+const path = require("path");
 const cloudinary = require("cloudinary").v2;
 require("dotenv").config();
+var uriMP3;
 
 const app = express();
 app.use(express.json());
 
 // Configurar Cloudinary para /unir
 cloudinary.config({
-  cloud_name: "deyopp70c",
-  api_key: "294961449435536",
-  api_secret: "W1oAl9_qJXT7_LLw4K1C9UfuYUY",
+  cloud_name: "dtvxttc1l",
+  api_key: "984911343286864",
+  api_secret: "WLG7bqJPq_BlxOWKV3j0N3R_MN8",
 });
 
 // Función para obtener duración
@@ -32,6 +33,7 @@ const getAudioDuration = (filePath) => {
 
 // 🔊 /mix (mantiene respuesta como archivo físico)
 app.post("/mix", async (req, res) => {
+  console.log(uriMP3);
   const { meditacion, fondo } = req.body;
 
   if (!meditacion || !fondo) {
@@ -60,9 +62,9 @@ app.post("/mix", async (req, res) => {
 
     const duration = await getAudioDuration(meditacionPath);
     const fadeStart = Math.max(0, duration - 4);
-    
+
     const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[0:a]highpass=f=100[a0];[1:a]afade=t=out:st=${fadeStart}:d=4,volume=0.2[a1];[a0][a1]amix=inputs=2:duration=first" -y "${outputPath}"`;
-    
+
     await new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {
         if (error) return reject(error);
@@ -71,7 +73,10 @@ app.post("/mix", async (req, res) => {
     });
 
     res.setHeader("Content-Type", "audio/mpeg");
-    res.setHeader("Content-Disposition", "attachment; filename=meditacion-final.mp3");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=meditacion-final.mp3"
+    );
     const stream = fs.createReadStream(outputPath);
     stream.pipe(res);
 
@@ -91,7 +96,11 @@ app.post("/unir", async (req, res) => {
   const { audios } = req.body;
 
   if (!Array.isArray(audios) || audios.length !== 7) {
-    return res.status(400).json({ error: "Debes enviar un arreglo con exactamente 7 URLs de audio." });
+    return res
+      .status(400)
+      .json({
+        error: "Debes enviar un arreglo con exactamente 7 URLs de audio.",
+      });
   }
 
   const id = uuidv4();
@@ -112,7 +121,7 @@ app.post("/unir", async (req, res) => {
     }
 
     const listPath = path.join(basePath, `${id}_list.txt`);
-    const listContent = audioPaths.map(p => `file '${p}'`).join('\n');
+    const listContent = audioPaths.map((p) => `file '${p}'`).join("\n");
     fs.writeFileSync(listPath, listContent);
 
     const outputPath = path.join(basePath, `${id}_completo.mp3`);
@@ -131,10 +140,10 @@ app.post("/unir", async (req, res) => {
       public_id: `hipnosis-${id}`,
       overwrite: true,
     });
-
+    uriMP3 = upload.secure_url;
     res.json({ url: upload.secure_url });
 
-    audioPaths.forEach(p => fs.unlinkSync(p));
+    audioPaths.forEach((p) => fs.unlinkSync(p));
     fs.unlinkSync(listPath);
     fs.unlinkSync(outputPath);
   } catch (err) {

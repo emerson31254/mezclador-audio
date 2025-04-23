@@ -178,45 +178,50 @@ app.post("/analizar-espectro", async (req, res) => {
       writer.on("error", reject);
     });
 
-    // 2. Analizar con ffmpeg + astats por tramo
-    exec(`ffmpeg -hide_banner -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`, (err, stdout, stderr) => {
-      fs.unlinkSync(tempPath); // Limpieza
+    // 2. Analizar con ffmpeg + astats (con info)
+    exec(
+      `ffmpeg -v info -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
+      (err, stdout, stderr) => {
+        fs.unlinkSync(tempPath); // Limpieza del archivo
 
-      if (err) {
-        console.error("FFmpeg error:", err);
-        return res.status(500).json({ error: "Error al analizar el audio." });
-      }
-
-      const output = stdout + stderr;
-
-      // 3. Extraer picos por tramo
-      const peakMatches = [...output.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
-
-      const suspectSeconds = [];
-      let glitch = false;
-
-      for (let i = 0; i < peakMatches.length; i++) {
-        const peak = peakMatches[i];
-
-        if (peak >= -0.1) {
-          glitch = true;
-          suspectSeconds.push(i); // cada match es ~1 segundo
+        if (err) {
+          console.error("FFmpeg error:", err);
+          return res.status(500).json({ error: "Error al analizar el audio." });
         }
 
-        // Verificar diferencia abrupta con el anterior
-        if (i > 0 && Math.abs(peak - peakMatches[i - 1]) > 10) {
-          glitch = true;
-          suspectSeconds.push(i);
-        }
-      }
+        const output = stderr; // astats logs salen en stderr
 
-      res.json({
-        glitch_detected: glitch,
-        suspect_seconds: [...new Set(suspectSeconds)],
-        peaks: peakMatches,
-        max_peak: Math.max(...peakMatches)
-      });
-    });
+        // 3. Extraer picos por bloque (1 seg aprox)
+        const peakMatches = [...output.matchAll(/Peak level dB: ([\-\d\.]+)/g)]
+          .map(m => parseFloat(m[1]))
+          .filter(n => !isNaN(n));
+
+        const suspectSeconds = [];
+        let glitch = false;
+
+        for (let i = 0; i < peakMatches.length; i++) {
+          const peak = peakMatches[i];
+
+          if (peak >= -0.1) {
+            glitch = true;
+            suspectSeconds.push(i);
+          }
+
+          // Cambio brusco entre segundos
+          if (i > 0 && Math.abs(peak - peakMatches[i - 1]) > 10) {
+            glitch = true;
+            suspectSeconds.push(i);
+          }
+        }
+
+        res.json({
+          glitch_detected: glitch,
+          suspect_seconds: [...new Set(suspectSeconds)],
+          peaks: peakMatches,
+          max_peak: peakMatches.length ? Math.max(...peakMatches) : null
+        });
+      }
+    );
   } catch (err) {
     console.error("Error al descargar o analizar:", err);
     res.status(500).json({ error: "Error general en el análisis." });

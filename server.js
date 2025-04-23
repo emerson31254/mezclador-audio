@@ -169,7 +169,7 @@ app.post("/analizar", async (req, res) => {
   const tempPath = path.join("/tmp", `${id}_check.mp3`);
 
   try {
-    // Descargar el archivo
+    // Descargar el archivo de audio
     const response = await axios({ url, responseType: "stream" });
     const writer = fs.createWriteStream(tempPath);
     await new Promise((resolve, reject) => {
@@ -178,26 +178,29 @@ app.post("/analizar", async (req, res) => {
       writer.on("error", reject);
     });
 
-    // Ejecutar ffmpeg para detectar volumen
+    // Ejecutar FFmpeg con astats para detectar picos por tramo
     exec(
-    `ffmpeg -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
-    (err, stdout, stderr) => {
-      fs.unlinkSync(tempPath);
-  
-      if (err) {
-        console.error("Error de FFmpeg:", err);
-        return res.status(500).json({ error: "Error al analizar el audio." });
+      `ffmpeg -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
+      (err, stdout, stderr) => {
+        fs.unlinkSync(tempPath); // Limpieza del archivo temporal
+
+        if (err) {
+          console.error("Error de FFmpeg:", err);
+          return res.status(500).json({ error: "Error al analizar el audio." });
+        }
+
+        // Extraer todos los valores de 'Peak level dB'
+        const picos = [...stderr.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
+
+        // Consideramos glitch si algún pico ≥ -0.1 dB
+        const glitch = picos.some(p => p >= -0.1);
+
+        res.json({
+          glitch_detected: glitch,
+          peaks: picos
+        });
       }
-  
-      const picos = [...stderr.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
-      const glitch = picos.some(p => p >= -0.1);
-  
-      res.json({
-        glitch_detected: glitch,
-        peaks: picos
-      });
-    }
-  );
+    );
   } catch (err) {
     console.error("Error al analizar audio:", err);
     res.status(500).json({ error: "Error al analizar el audio." });

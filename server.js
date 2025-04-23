@@ -158,63 +158,6 @@ app.post("/unir", async (req, res) => {
   }
 });
 
-app.post("/analizar", async (req, res) => {
-  const { url } = req.body;
-
-  if (!url) {
-    return res.status(400).json({ error: "Falta la URL del audio a analizar." });
-  }
-
-  const id = uuidv4();
-  const tempPath = path.join("/tmp", `${id}_check.mp3`);
-
-  try {
-    // Descargar el archivo de audio
-    const response = await axios({ url, responseType: "stream" });
-    const writer = fs.createWriteStream(tempPath);
-    await new Promise((resolve, reject) => {
-      response.data.pipe(writer);
-      writer.on("finish", resolve);
-      writer.on("error", reject);
-    });
-
-    // Ejecutar FFmpeg con astats para detectar picos por tramo
-    exec(
-      `ffmpeg -hide_banner -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
-      (err, stdout, stderr) => {
-        fs.unlinkSync(tempPath);
-    
-        if (err) {
-          console.error("Error de FFmpeg:", err);
-          return res.status(500).json({ error: "Error al analizar el audio." });
-        }
-    
-        const output = stdout + stderr;
-        const picos = [...output.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
-    
-        // Validar si el análisis fue exitoso
-        if (!picos.length || picos.every(v => isNaN(v))) {
-          return res.status(400).json({
-            glitch_detected: true,
-            reason: "No se pudieron analizar los picos correctamente.",
-            peaks: []
-          });
-        }
-    
-        const glitch = picos.some(p => p >= -0.1);
-    
-        res.json({
-          glitch_detected: glitch,
-          peaks: picos
-        });
-      }
-    );
-  } catch (err) {
-    console.error("Error al analizar audio:", err);
-    res.status(500).json({ error: "Error al analizar el audio." });
-  }
-});
-
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

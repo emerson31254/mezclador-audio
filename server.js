@@ -180,21 +180,29 @@ app.post("/analizar", async (req, res) => {
 
     // Ejecutar FFmpeg con astats para detectar picos por tramo
     exec(
-      `ffmpeg -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
+      `ffmpeg -hide_banner -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
       (err, stdout, stderr) => {
-        fs.unlinkSync(tempPath); // Limpieza del archivo temporal
-
+        fs.unlinkSync(tempPath);
+    
         if (err) {
           console.error("Error de FFmpeg:", err);
           return res.status(500).json({ error: "Error al analizar el audio." });
         }
-
-        // Extraer todos los valores de 'Peak level dB'
-        const picos = [...stderr.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
-
-        // Consideramos glitch si algún pico ≥ -0.1 dB
+    
+        const output = stdout + stderr;
+        const picos = [...output.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
+    
+        // Validar si el análisis fue exitoso
+        if (!picos.length || picos.every(v => isNaN(v))) {
+          return res.status(400).json({
+            glitch_detected: true,
+            reason: "No se pudieron analizar los picos correctamente.",
+            peaks: []
+          });
+        }
+    
         const glitch = picos.some(p => p >= -0.1);
-
+    
         res.json({
           glitch_detected: glitch,
           peaks: picos

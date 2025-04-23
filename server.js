@@ -158,6 +158,71 @@ app.post("/unir", async (req, res) => {
   }
 });
 
+app.post("/analizar-espectro", async (req, res) => {
+  const { url } = req.body;
+
+  if (!url) {
+    return res.status(400).json({ error: "Falta la URL del audio." });
+  }
+
+  const id = uuidv4();
+  const tempPath = path.join("/tmp", `${id}_check.mp3`);
+
+  try {
+    // 1. Descargar el audio
+    const response = await axios({ url, responseType: "stream" });
+    const writer = fs.createWriteStream(tempPath);
+    await new Promise((resolve, reject) => {
+      response.data.pipe(writer);
+      writer.on("finish", resolve);
+      writer.on("error", reject);
+    });
+
+    // 2. Analizar con ffmpeg + astats por tramo
+    exec(`ffmpeg -hide_banner -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`, (err, stdout, stderr) => {
+      fs.unlinkSync(tempPath); // Limpieza
+
+      if (err) {
+        console.error("FFmpeg error:", err);
+        return res.status(500).json({ error: "Error al analizar el audio." });
+      }
+
+      const output = stdout + stderr;
+
+      // 3. Extraer picos por tramo
+      const peakMatches = [...output.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
+
+      const suspectSeconds = [];
+      let glitch = false;
+
+      for (let i = 0; i < peakMatches.length; i++) {
+        const peak = peakMatches[i];
+
+        if (peak >= -0.1) {
+          glitch = true;
+          suspectSeconds.push(i); // cada match es ~1 segundo
+        }
+
+        // Verificar diferencia abrupta con el anterior
+        if (i > 0 && Math.abs(peak - peakMatches[i - 1]) > 10) {
+          glitch = true;
+          suspectSeconds.push(i);
+        }
+      }
+
+      res.json({
+        glitch_detected: glitch,
+        suspect_seconds: [...new Set(suspectSeconds)],
+        peaks: peakMatches,
+        max_peak: Math.max(...peakMatches)
+      });
+    });
+  } catch (err) {
+    console.error("Error al descargar o analizar:", err);
+    res.status(500).json({ error: "Error general en el análisis." });
+  }
+});
+
 // Iniciar servidor
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

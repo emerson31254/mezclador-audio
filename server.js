@@ -179,29 +179,25 @@ app.post("/analizar", async (req, res) => {
     });
 
     // Ejecutar ffmpeg para detectar volumen
-    exec(`ffmpeg -i "${tempPath}" -af volumedetect -f null -`, (err, stdout, stderr) => {
-      fs.unlinkSync(tempPath); // Borrar archivo temp
-
+    exec(
+    `ffmpeg -i "${tempPath}" -af astats=metadata=1:reset=1 -f null -`,
+    (err, stdout, stderr) => {
+      fs.unlinkSync(tempPath);
+  
       if (err) {
         console.error("Error de FFmpeg:", err);
         return res.status(500).json({ error: "Error al analizar el audio." });
       }
-
-      const maxMatch = stderr.match(/max_volume: ([\-\d\.]+) dB/);
-      const meanMatch = stderr.match(/mean_volume: ([\-\d\.]+) dB/);
-
-      const maxVolume = maxMatch ? parseFloat(maxMatch[1]) : null;
-      const meanVolume = meanMatch ? parseFloat(meanMatch[1]) : null;
-
-      // Regla simple: glitch si max_volume >= -0.1 dB
-      const glitch = maxVolume !== null && maxVolume >= -0.1;
-
+  
+      const picos = [...stderr.matchAll(/Peak level dB: ([\-\d\.]+)/g)].map(m => parseFloat(m[1]));
+      const glitch = picos.some(p => p >= -0.1);
+  
       res.json({
         glitch_detected: glitch,
-        max_volume: `${maxVolume} dB`,
-        mean_volume: `${meanVolume} dB`,
+        peaks: picos
       });
-    });
+    }
+  );
   } catch (err) {
     console.error("Error al analizar audio:", err);
     res.status(500).json({ error: "Error al analizar el audio." });

@@ -67,7 +67,7 @@ app.post("/mix", async (req, res) => {
 
     // 🎧 Mezcla: solo baja volumen de música y fade-out al final
 
-    const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[1:a]afade=t=out:st=${fadeStart}:d=4,volume=0.2[a1];[0:a][a1]amix=inputs=2:duration=first[aout];[aout]volume=2.0" -y "${outputPath}"`;
+    const command = `ffmpeg -i "${meditacionPath}" -i "${fondoPath}" -filter_complex "[1:a]afade=t=out:st=${fadeStart}:d=4,volume=0.4[a1];[0:a][a1]amix=inputs=2:duration=first[aout];[aout]volume=1.0" -y "${outputPath}"`;
     
     await new Promise((resolve, reject) => {
       exec(command, (error, stdout, stderr) => {

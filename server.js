@@ -106,9 +106,9 @@ app.post("/mix", async (req, res) => {
 app.post("/unir", async (req, res) => {
   const { audios } = req.body;
 
-  if (!Array.isArray(audios) || audios.length !== 7) {
+  if (!Array.isArray(audios) || audios.length !== 8) {
     return res.status(400).json({
-      error: "Debes enviar un arreglo con exactamente 7 URLs de audio.",
+      error: "Debes enviar un arreglo con exactamente 8 URLs de audio.",
     });
   }
 
